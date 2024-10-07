@@ -147,21 +147,12 @@ class UserServiceTest {
   @Test
   void PENDING_상태의_사용자는_인증코드로_ACTIVE_로_변경할_수_있다() {
     //given
-    UserCreateDto dto = UserCreateDto.builder()
-            .email("dobidugi@gmail.com")
-            .address("서울시 강남구")
-            .nickname("dobidugi")
-            .build();
-    UserEntity createUser = userService.create(dto);
-    BDDMockito.doNothing().when(mailSender).send(BDDMockito.any(SimpleMailMessage.class));
-    createUser.setStatus(UserStatus.ACTIVE);
-    createUser.setCertificationCode("aaaaaa-aaaaa-aaaaa-aaaaa-aaaaa");
 
     //when
-    userService.verifyEmail(createUser.getId(), "aaaaaa-aaaaa-aaaaa-aaaaa-aaaaa");
+    userService.verifyEmail(2L, "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaab");
 
     //then
-    UserEntity findUser = userRepository.getById(createUser.getId());
+    UserEntity findUser = userService.getById(2L);
     assertThat(findUser.getStatus()).isEqualTo(UserStatus.ACTIVE);
   }
 
