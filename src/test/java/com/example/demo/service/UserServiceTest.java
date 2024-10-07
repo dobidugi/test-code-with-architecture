@@ -14,12 +14,20 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlGroup;
 
 import static org.assertj.core.api.Assertions.*;
 
 @SpringBootTest
-@Transactional
+@TestPropertySource("classpath:application.properties")
+@SqlGroup(
+        {
+                @Sql(executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD, scripts = "/sql/user-service-test-data.sql"),
+                @Sql(executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD, scripts = "/sql/delete-all-data.sql")
+        }
+)
 class UserServiceTest {
 
   @Autowired
@@ -34,13 +42,6 @@ class UserServiceTest {
   @Test
   void getByEmail은_Active_상태의_유저를_가져온다() {
     // given
-    UserEntity userEntity = new UserEntity();
-    userEntity.setEmail("dobidugi@gmail.com");
-    userEntity.setNickname("dobidugi");
-    userEntity.setAddress("서울시 강남구");
-    userEntity.setStatus(UserStatus.ACTIVE);
-    userEntity.setCertificationCode("aaaaaa-aaaaa-aaaaa-aaaaa-aaaaa");
-    userRepository.save(userEntity);
     String email = "dobidugi@gmail.com";
 
     //when
@@ -55,14 +56,7 @@ class UserServiceTest {
   @Test
   void getByEmail은_Active_상태가_아니라면_에러를_발생_시킨다() {
     // given
-    UserEntity userEntity = new UserEntity();
-    userEntity.setEmail("dobidugi@gmail.com");
-    userEntity.setNickname("dobidugi");
-    userEntity.setAddress("서울시 강남구");
-    userEntity.setStatus(UserStatus.PENDING);
-    userEntity.setCertificationCode("aaaaaa-aaaaa-aaaaa-aaaaa-aaaaa");
-    userRepository.save(userEntity);
-    String email = "dobidugi@gmail.com";
+    String email = "asd3@naver.com";
 
     //when
     //then
@@ -75,19 +69,12 @@ class UserServiceTest {
   @Test
   void getById는_Active_상태의_유저를_가져온다() {
     // given
-    UserEntity userEntity = new UserEntity();
-    userEntity.setEmail("dobidugi@gmail.com");
-    userEntity.setNickname("dobidugi");
-    userEntity.setAddress("서울시 강남구");
-    userEntity.setStatus(UserStatus.ACTIVE);
-    userEntity.setCertificationCode("aaaaaa-aaaaa-aaaaa-aaaaa-aaaaa");
-    userRepository.save(userEntity);
 
     //when
-    UserEntity findUser = userService.getById(userEntity.getId());
+    UserEntity findUser = userService.getById(1L);
 
     //then
-    assertThat(findUser.getEmail()).isEqualTo(userEntity.getEmail());
+    assertThat(findUser.getEmail()).isEqualTo("dobidugi@gmail.com");
 
   }
 
@@ -95,18 +82,11 @@ class UserServiceTest {
   @Test
   void getById는_Active_상태가_아니라면_에러를_발생_시킨다() {
     // given
-    UserEntity userEntity = new UserEntity();
-    userEntity.setEmail("dobidugi@gmail.com");
-    userEntity.setNickname("dobidugi");
-    userEntity.setAddress("서울시 강남구");
-    userEntity.setStatus(UserStatus.PENDING);
-    userEntity.setCertificationCode("aaaaaa-aaaaa-aaaaa-aaaaa-aaaaa");
-    userRepository.save(userEntity);
 
     //when
     //then
     assertThatThrownBy(() -> {
-      userService.getById(userEntity.getId());
+      userService.getById(2L);
     }).isInstanceOf(ResourceNotFoundException.class);
 
   }
@@ -132,17 +112,7 @@ class UserServiceTest {
 
   @Test
   void update는_유저를_수정할_수_있다() {
-    // given
-    UserCreateDto dto = UserCreateDto.builder()
-            .email("dobidugi@gmail.com")
-            .address("서울시 강남구")
-            .nickname("dobidugi")
-            .build();
-
-    UserEntity createUser = userService.create(dto);
-    BDDMockito.doNothing().when(mailSender).send(BDDMockito.any(SimpleMailMessage.class));
-    createUser.setStatus(UserStatus.ACTIVE);
-    userRepository.flush();
+    //given
 
     UserUpdateDto updateDto = UserUpdateDto.builder()
             .nickname("dobidugi2")
@@ -151,11 +121,11 @@ class UserServiceTest {
 
 
     //when
-    UserEntity updateUser = userService.update(createUser.getId(), updateDto);
+    UserEntity updateUser = userService.update(1L, updateDto);
 
 
     //then
-    UserEntity findUser = userRepository.getById(createUser.getId());
+    UserEntity findUser = userService.getById(1L);
     assertThat(findUser.getId()).isNotNull();
     assertThat(findUser.getNickname()).isEqualTo(updateDto.getNickname());
     assertThat(findUser.getAddress()).isEqualTo(updateDto.getAddress());
@@ -164,22 +134,14 @@ class UserServiceTest {
   @Test
   void user를_로그인_시키면_마지막_로그인_시간이_변경된다() {
     //given
-    UserCreateDto dto = UserCreateDto.builder()
-            .email("dobidugi@gmail.com")
-            .address("서울시 강남구")
-            .nickname("dobidugi")
-            .build();
-    UserEntity createUser = userService.create(dto);
-    BDDMockito.doNothing().when(mailSender).send(BDDMockito.any(SimpleMailMessage.class));
-    createUser.setStatus(UserStatus.ACTIVE);
 
     //when
-    userService.login(createUser.getId());
+    userService.login(1L);
 
     //then
-    UserEntity findUser = userRepository.getById(createUser.getId());
-    assertThat(findUser.getLastLoginAt()).isNotNull();
-    assertThat(findUser.getLastLoginAt()).isGreaterThan(0L);
+    UserEntity userEntity = userService.getById(1);
+    assertThat(userEntity.getLastLoginAt()).isNotNull();
+    assertThat(userEntity.getLastLoginAt()).isGreaterThan(0L);
   }
 
   @Test
